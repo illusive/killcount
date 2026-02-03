@@ -17,6 +17,7 @@ function App() {
     const [history, setHistory] = useState<Record<string, number>>({});
     const [isInitialSetup, setIsInitialSetup] = useState<boolean>(false);
     const [error, setError] = useState<string>('');
+    const [skipDailyUpdate, setSkipDailyUpdate] = useState<boolean>(false);
 
     // Get the current date at 3AM threshold
     const getCurrentDate = (): string => {
@@ -132,16 +133,21 @@ function App() {
         // Calculate kills added since last update
         const killsAdded = newTotal - totalKills;
 
-        // Show error if the new total is not greater than current total
-        if (killsAdded <= 0) {
+        // Show error if the new total is not greater than current total (unless skipping daily update)
+        if (killsAdded <= 0 && !skipDailyUpdate) {
             setError(`Total kills must be greater than ${totalKills}`);
             setTimeout(() => setError(''), 3000);
             setInputValue('');
             return;
         }
 
-        const newDailyKills = dailyKills + killsAdded;
         const currentDate = getCurrentDate();
+        let newDailyKills = dailyKills;
+
+        // Only update daily kills if not skipping
+        if (!skipDailyUpdate && killsAdded > 0) {
+            newDailyKills = dailyKills + killsAdded;
+        }
 
         const newData: KillData = {
             total: newTotal,
@@ -154,8 +160,8 @@ function App() {
         setTotalKills(newTotal);
         setDailyKills(newDailyKills);
 
-        // Update record if today's kills beat it
-        if (newDailyKills > record) {
+        // Update record if today's kills beat it (only when not skipping)
+        if (!skipDailyUpdate && newDailyKills > record) {
             setRecord(newDailyKills);
             // Trigger confetti celebration!
             triggerConfetti();
@@ -164,11 +170,14 @@ function App() {
         // Clear any errors
         setError('');
 
-        // Trigger animation
-        setIsAnimating(true);
-        setTimeout(() => setIsAnimating(false), 600);
+        // Trigger animation (only when not skipping)
+        if (!skipDailyUpdate) {
+            setIsAnimating(true);
+            setTimeout(() => setIsAnimating(false), 600);
+        }
 
         setInputValue('');
+        setSkipDailyUpdate(false); // Reset checkbox
     };
 
     const handleInitialSetup = (e: React.FormEvent) => {
@@ -193,6 +202,31 @@ function App() {
         setDailyKills(0);
         setIsInitialSetup(false);
         setInputValue('');
+    };
+
+    const handleResetRecord = () => {
+        if (window.confirm('Are you sure you want to reset your record? This cannot be undone.')) {
+            setRecord(0);
+            const savedData = localStorage.getItem('killCounter');
+            if (savedData) {
+                const data: KillData = JSON.parse(savedData);
+                // Clear history to reset record
+                data.history = {};
+                localStorage.setItem('killCounter', JSON.stringify(data));
+                setHistory({});
+            }
+        }
+    };
+
+    const handleResetEverything = () => {
+        if (window.confirm('Are you sure you want to reset EVERYTHING? This will delete all your data and cannot be undone.')) {
+            localStorage.removeItem('killCounter');
+            setTotalKills(0);
+            setDailyKills(0);
+            setRecord(0);
+            setHistory({});
+            setIsInitialSetup(true);
+        }
     };
 
     return (
@@ -292,21 +326,48 @@ function App() {
                             )}
                         </div>
 
-                        <form onSubmit={handleSubmit} className="flex flex-col md:flex-row gap-4 mb-8">
-                            <input
-                                type="number"
-                                value={inputValue}
-                                onChange={(e) => setInputValue(e.target.value)}
-                                placeholder="Enter total kills"
-                                className={`flex-1 px-6 py-4 text-xl bg-white/5 border-2 ${error ? 'border-red-500/50 animate-error-shake' : 'border-purple-500/30'} rounded-xl text-white placeholder-slate-500 outline-none focus:border-purple-500 focus:shadow-lg focus:shadow-purple-500/20 transition-all backdrop-blur-lg [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none`}
-                                min="0"
-                            />
-                            <button
-                                type="submit"
-                                className="px-10 py-4 text-lg font-semibold bg-gradient-to-r from-purple-600 to-pink-600 rounded-xl text-white hover:-translate-y-1 hover:shadow-xl hover:shadow-purple-500/50 active:translate-y-0 transition-all uppercase tracking-wide"
-                            >
-                                Update
-                            </button>
+                        <form onSubmit={handleSubmit} className="flex flex-col gap-4 mb-8">
+                            <div className="flex flex-col md:flex-row gap-4">
+                                <input
+                                    type="number"
+                                    value={inputValue}
+                                    onChange={(e) => setInputValue(e.target.value)}
+                                    placeholder="Enter total kills"
+                                    className={`flex-1 px-6 py-4 text-xl bg-white/5 border-2 ${error ? 'border-red-500/50 animate-error-shake' : 'border-purple-500/30'} rounded-xl text-white placeholder-slate-500 outline-none focus:border-purple-500 focus:shadow-lg focus:shadow-purple-500/20 transition-all backdrop-blur-lg [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none`}
+                                    min="0"
+                                />
+                                <button
+                                    type="submit"
+                                    className="px-10 py-4 text-lg font-semibold bg-gradient-to-r from-purple-600 to-pink-600 rounded-xl text-white hover:-translate-y-1 hover:shadow-xl hover:shadow-purple-500/50 active:translate-y-0 transition-all uppercase tracking-wide"
+                                >
+                                    Update
+                                </button>
+                            </div>
+
+                            {/* Checkbox for correction */}
+                            <label className="flex items-center justify-center gap-3 text-purple-300 text-sm cursor-pointer group">
+                                <div className="relative">
+                                    <input
+                                        type="checkbox"
+                                        checked={skipDailyUpdate}
+                                        onChange={(e) => setSkipDailyUpdate(e.target.checked)}
+                                        className="peer sr-only"
+                                    />
+                                    <div className="w-5 h-5 border-2 border-purple-500/40 rounded bg-white/5 peer-checked:bg-gradient-to-br peer-checked:from-purple-500 peer-checked:to-pink-500 peer-checked:border-transparent transition-all duration-200 flex items-center justify-center">
+                                        <svg
+                                            className={`w-3 h-3 text-white transition-all duration-200 ${skipDailyUpdate ? 'scale-100 opacity-100' : 'scale-0 opacity-0'}`}
+                                            fill="none"
+                                            stroke="currentColor"
+                                            viewBox="0 0 24 24"
+                                        >
+                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
+                                        </svg>
+                                    </div>
+                                </div>
+                                <span className="group-hover:text-purple-200 transition-colors">
+                  Just update total (don't count toward today)
+                </span>
+                            </label>
                         </form>
 
                         {/* Error message */}
@@ -316,9 +377,26 @@ function App() {
                             </div>
                         )}
 
-                        <div className="flex items-center justify-center gap-4 px-6 py-5 bg-white/5 rounded-xl border border-white/10">
+                        <div className="flex items-center justify-center gap-4 px-6 py-5 bg-white/5 rounded-xl border border-white/10 mb-6">
                             <span className="text-xl text-purple-200 font-medium">Total Kills:</span>
                             <span className="text-3xl font-bold text-purple-400">{totalKills}</span>
+                        </div>
+
+                        {/* Reset buttons */}
+                        <div className="flex items-center justify-center gap-6 text-xs text-purple-300/50">
+                            <button
+                                onClick={handleResetRecord}
+                                className="hover:text-purple-300 transition-colors underline"
+                            >
+                                Reset Record
+                            </button>
+                            <span>•</span>
+                            <button
+                                onClick={handleResetEverything}
+                                className="hover:text-red-400 transition-colors underline"
+                            >
+                                Reset Everything
+                            </button>
                         </div>
                     </>
                 )}
