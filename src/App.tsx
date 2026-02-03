@@ -19,13 +19,13 @@ function App() {
     const [error, setError] = useState<string>('');
     const [skipDailyUpdate, setSkipDailyUpdate] = useState<boolean>(false);
 
-    // Get the current date at 3AM threshold
+    // Get the current date at 5AM threshold
     const getCurrentDate = (): string => {
         const now = new Date();
         const hour = now.getHours();
 
-        // If it's before 3AM, use yesterday's date
-        if (hour < 3) {
+        // If it's before 5AM, use yesterday's date
+        if (hour < 5) {
             const yesterday = new Date(now);
             yesterday.setDate(yesterday.getDate() - 1);
             return yesterday.toISOString().split('T')[0];
