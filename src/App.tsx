@@ -15,6 +15,7 @@ function App() {
     const [record, setRecord] = useState<number>(0);
     const [history, setHistory] = useState<Record<string, number>>({});
     const [isInitialSetup, setIsInitialSetup] = useState<boolean>(false);
+    const [error, setError] = useState<string>('');
 
     // Get the current date at 3AM threshold
     const getCurrentDate = (): string => {
@@ -88,14 +89,18 @@ function App() {
         const newTotal = parseInt(inputValue);
 
         if (isNaN(newTotal) || newTotal < 0) {
+            setError('Please enter a valid number');
+            setTimeout(() => setError(''), 3000);
             return;
         }
 
         // Calculate kills added since last update
         const killsAdded = newTotal - totalKills;
 
-        // Only update if kills were actually added
+        // Show error if the new total is not greater than current total
         if (killsAdded <= 0) {
+            setError(`Total kills must be greater than ${totalKills}`);
+            setTimeout(() => setError(''), 3000);
             setInputValue('');
             return;
         }
@@ -118,6 +123,9 @@ function App() {
         if (newDailyKills > record) {
             setRecord(newDailyKills);
         }
+
+        // Clear any errors
+        setError('');
 
         // Trigger animation
         setIsAnimating(true);
@@ -253,7 +261,7 @@ function App() {
                                 value={inputValue}
                                 onChange={(e) => setInputValue(e.target.value)}
                                 placeholder="Enter total kills"
-                                className="flex-1 px-6 py-4 text-xl bg-white/5 border-2 border-purple-500/30 rounded-xl text-white placeholder-slate-500 outline-none focus:border-purple-500 focus:shadow-lg focus:shadow-purple-500/20 transition-all backdrop-blur-lg [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                                className={`flex-1 px-6 py-4 text-xl bg-white/5 border-2 ${error ? 'border-red-500/50 animate-error-shake' : 'border-purple-500/30'} rounded-xl text-white placeholder-slate-500 outline-none focus:border-purple-500 focus:shadow-lg focus:shadow-purple-500/20 transition-all backdrop-blur-lg [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none`}
                                 min="0"
                             />
                             <button
@@ -263,6 +271,13 @@ function App() {
                                 Update
                             </button>
                         </form>
+
+                        {/* Error message */}
+                        {error && (
+                            <div className="mb-8 -mt-4 px-4 py-3 bg-red-500/10 border border-red-500/30 rounded-lg text-red-400 text-sm animate-error-shake">
+                                {error}
+                            </div>
+                        )}
 
                         <div className="flex items-center justify-center gap-4 px-6 py-5 bg-white/5 rounded-xl border border-white/10">
                             <span className="text-xl text-purple-200 font-medium">Total Kills:</span>
